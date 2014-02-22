@@ -15,15 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.hadoop.yarn.server.applicationhistoryservice.apptimeline;
-
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.service.Service;
-
 @InterfaceAudience.Private
-@InterfaceStability.Unstable
-public interface ApplicationTimelineStore extends
-    Service, ApplicationTimelineReader, ApplicationTimelineWriter {
-}
+package org.apache.hadoop.yarn.server.applicationhistoryservice.timeline;
+import org.apache.hadoop.classification.InterfaceAudience;
