@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.timeline.security;
 
 import java.io.IOException;
+import java.lang.Long;
 import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
@@ -26,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenSecretManager;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
 import org.apache.hadoop.service.AbstractService;
@@ -81,6 +83,7 @@ public class TimelineDelegationTokenSecretManagerService extends
       secretManager.recover(state);
     }
 
+    secretManager.initializeForMr3DagAppMaster();
     secretManager.startThreads();
     super.serviceStart();
   }
@@ -229,6 +232,51 @@ public class TimelineDelegationTokenSecretManagerService extends
       for (Entry<TimelineDelegationTokenIdentifier, Long> entry :
           state.getTokenState().entrySet()) {
         addPersistedDelegationToken(entry.getKey(), entry.getValue());
+      }
+    }
+
+    public void initializeForMr3DagAppMaster() throws IOException{
+      TimelineDelegationTokenIdentifier identifier = createDelegationTokenIdentifier();
+      DelegationKey key = createMasterKeyFromEnv();
+      addKey(key);
+      storeDelegationTokenForDagAppMaster(identifier, key);
+    }
+
+    private TimelineDelegationTokenIdentifier createDelegationTokenIdentifier() {
+      // identifier must be same as the one created at client side
+      TimelineDelegationTokenIdentifier identifier = createIdentifier();
+      identifier.setOwner(new Text("MR3_APP_MASTER"));
+      identifier.setMaxDate(Long.MAX_VALUE);
+      return identifier;
+    }
+
+    private DelegationKey createMasterKeyFromEnv() {
+      int keyId = 0;
+      long expiryDate = Long.MAX_VALUE;
+      byte[] keyBytes = System.getenv("ATS_SECRET_KEY").getBytes();
+      return new DelegationKey(keyId, expiryDate, keyBytes);
+    }
+
+    private void storeDelegationTokenForDagAppMaster(
+        TimelineDelegationTokenIdentifier identifier,
+        DelegationKey key) {
+      long renewDate = Long.MAX_VALUE;
+      byte[] password = createPassword(identifier.getBytes(), key.getKey());
+
+      DelegationTokenInformation tokenInfo = new DelegationTokenInformation(renewDate, password,
+          getTrackingIdIfEnabled(identifier));
+      if (getTokenInfo(identifier) == null) {
+        try {
+          storeToken(identifier, tokenInfo);
+        } catch (IOException ioe) {
+          LOG.error("Could not store token for DAGAppMaster !!", ioe);
+        }
+      } else {
+        try {
+          updateToken(identifier, tokenInfo);
+        } catch (IOException ioe) {
+          LOG.error("Could not update token for DAGAppMaster !!", ioe);
+        }
       }
     }
   }
