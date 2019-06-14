@@ -170,6 +170,14 @@ public class TimelineACLsManager {
     return false;
   }
 
+  public boolean areACLsEnabled() {
+    return adminAclsManager.areACLsEnabled();
+  }
+
+  public boolean isAdmin(UserGroupInformation callerUGI) {
+    return adminAclsManager.isAdmin(callerUGI);
+  }
+
   @Private
   @VisibleForTesting
   public AdminACLsManager

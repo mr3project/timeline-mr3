@@ -40,6 +40,7 @@ import org.apache.hadoop.yarn.api.records.timeline.TimelineEvents;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineDomain;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineDomains;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.timeline.TimelineReader.Field;
 import org.apache.hadoop.yarn.server.timeline.security.TimelineACLsManager;
@@ -85,6 +86,11 @@ public class TimelineDataManager extends AbstractService {
           UserGroupInformation.getCurrentUser().getShortUserName());
       domain.setReaders("*");
       domain.setWriters("*");
+      store.put(domain);
+    }
+    if (timelineACLsManager.areACLsEnabled()) {
+      domain = store.getDomain(DEFAULT_DOMAIN_ID);
+      domain.setWriters("MR3_APP_MASTER");
       store.put(domain);
     }
     super.serviceInit(conf);
@@ -311,6 +317,11 @@ public class TimelineDataManager extends AbstractService {
    */
   public void putDomain(TimelineDomain domain,
       UserGroupInformation callerUGI) throws YarnException, IOException {
+    if (timelineACLsManager.areACLsEnabled() &&
+        !timelineACLsManager.isAdmin(callerUGI)) {
+      throw new YarnException(callerUGI.getShortUserName() +
+          " is not allowed to put domains");
+    }
     TimelineDomain existingDomain =
         store.getDomain(domain.getId());
     if (existingDomain != null) {
